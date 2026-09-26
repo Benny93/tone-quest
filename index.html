@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1a0f2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tone Quest">
+<title>Tone Quest 声调</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+@font-face { font-family: Pixel; src: url(fonts/pixelify.ttf) format('truetype'); font-weight: 400 700; font-display: swap; }
+@font-face { font-family: PinyinPx; src: url(fonts/vt323.ttf) format('truetype'); font-display: swap; }
+:root {
+  --ink: #1a0f2e; --ink2: #2a1745; --red: #d62e2e; --red-d: #8e1b1b; --gold: #ffcc33; --gold-d: #c98a12;
+  --jade: #3fbf7f; --jade-d: #1f7a4c; --paper: #fff4dc; --grey: #6b5a80; --text: #fff4dc;
+  --t1: #ff5a5a; --t2: #ffb02e; --t3: #4fd18b; --t4: #5aa9ff;
+  --px: 4px;
+  --notch: polygon(var(--px) 0, calc(100% - var(--px)) 0, 100% var(--px), 100% calc(100% - var(--px)), calc(100% - var(--px)) 100%, var(--px) 100%, 0 calc(100% - var(--px)), 0 var(--px));
+  --py: PinyinPx, monospace;
+  --zh: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: var(--ink); color: var(--text); overflow: hidden; }
+body { font: 16px/1.3 Pixel, var(--zh); -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+canvas.layer { position: fixed; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; pointer-events: none; }
+#bg { z-index: 0; } #fx { z-index: 50; }
+img.spr { image-rendering: pixelated; vertical-align: middle; }
+.zh { font-family: var(--zh); font-weight: 700; }
+
+.screen { position: fixed; inset: 0; z-index: 1; display: flex; flex-direction: column; max-width: 480px; margin: 0 auto;
+  padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 12px); overflow-y: auto; }
+.hidden { display: none !important; }
+
+button { font: inherit; color: inherit; border: 0; cursor: pointer; background: none; padding: 0; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 18px; font-size: 18px; font-weight: 700;
+  background: var(--red); clip-path: var(--notch); box-shadow: inset 0 -6px 0 var(--red-d), inset 0 4px 0 rgba(255,255,255,.25);
+  text-shadow: 2px 2px 0 rgba(0,0,0,.35); transition: transform .05s; }
+.btn:active { transform: translateY(3px); box-shadow: inset 0 -2px 0 var(--red-d), inset 0 4px 0 rgba(255,255,255,.2); }
+.btn.gold { background: var(--gold); color: var(--ink); text-shadow: none; box-shadow: inset 0 -6px 0 var(--gold-d), inset 0 4px 0 rgba(255,255,255,.4); }
+.btn.jade { background: var(--jade); box-shadow: inset 0 -6px 0 var(--jade-d), inset 0 4px 0 rgba(255,255,255,.3); }
+.btn.dark { background: var(--ink2); box-shadow: inset 0 -6px 0 #120a20, inset 0 4px 0 rgba(255,255,255,.12); }
+.btn.small { padding: 10px 12px; font-size: 14px; }
+.panel { background: rgba(26,15,46,.82); clip-path: var(--notch); box-shadow: inset 0 0 0 var(--px) var(--gold-d); padding: 14px; }
+
+/* ---------- menu ---------- */
+.title { text-align: center; margin: 8px 0 12px; }
+.title h1 { margin: 0; font-size: 36px; letter-spacing: 2px; color: var(--gold); text-shadow: 3px 3px 0 var(--red-d), 6px 6px 0 #000; }
+.title h1 .zh { display: block; font-size: 44px; color: var(--red); text-shadow: 3px 3px 0 var(--gold), 6px 6px 0 #000; letter-spacing: 8px; }
+.title .mascot { animation: bob 1.6s steps(4) infinite; }
+@keyframes bob { 50% { transform: translateY(-6px); } }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; margin-bottom: 14px; }
+.stat b { display: block; font-size: 24px; color: var(--gold); }
+.stat small { font-size: 11px; opacity: .8; text-transform: uppercase; }
+.streak-note { grid-column: 1 / -1; font-size: 13px; color: var(--paper); }
+.streak-note.done { color: var(--jade); }
+.flame { animation: flicker .5s steps(1) infinite; }
+@keyframes flicker { 50% { transform: scaleX(-1); } }
+.tier h2 { font-size: 15px; margin: 14px 0 8px; display: flex; align-items: center; gap: 8px; color: var(--gold); text-transform: uppercase; letter-spacing: 1px; }
+.tier h2 .zh { background: var(--red); color: var(--gold); padding: 2px 6px; font-size: 14px; clip-path: var(--notch); }
+.tier h2::after { content: ""; flex: 1; height: 4px; background: repeating-linear-gradient(90deg, var(--gold-d) 0 8px, transparent 8px 12px); }
+.mode { display: flex; width: 100%; align-items: center; gap: 12px; padding: 12px; margin-bottom: 10px; text-align: left;
+  background: var(--paper); color: var(--ink); clip-path: var(--notch); box-shadow: inset 0 -6px 0 #d8c49a;
+  opacity: 0; animation: pop .35s steps(5) forwards; }
+.mode:active { transform: translateY(3px); box-shadow: inset 0 -2px 0 #d8c49a; }
+@keyframes pop { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+.mode .glyph { flex: none; width: 56px; height: 56px; display: grid; place-items: center; font-size: 34px; color: var(--gold);
+  background: var(--red); clip-path: var(--notch); box-shadow: inset 0 -5px 0 var(--red-d); font-family: var(--zh); font-weight: 900; }
+.mode .info { flex: 1; min-width: 0; }
+.mode .info b { font-size: 18px; display: block; }
+.mode .info small { font-size: 12px; color: #6b4f3a; }
+.mode .best { text-align: right; font-size: 12px; color: #6b4f3a; white-space: nowrap; }
+.mode .best b { display: block; font-size: 16px; color: var(--red-d); }
+.menu-foot { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 8px; }
+.menu-foot .btn { font-size: 13px; padding: 12px 6px; flex-direction: column; gap: 2px; }
+.menu-foot .btn span { font-size: 10px; opacity: .85; font-weight: 400; }
+
+/* ---------- game ---------- */
+.topbar { display: flex; align-items: center; gap: 10px; }
+.progress { flex: 1; display: flex; gap: 3px; height: 18px; }
+.progress i { flex: 1; background: var(--ink2); box-shadow: inset 0 -3px 0 #120a20; }
+.progress i.ok { background: var(--jade); box-shadow: inset 0 -3px 0 var(--jade-d); }
+.progress i.bad { background: var(--red); box-shadow: inset 0 -3px 0 var(--red-d); }
+.progress i.cur { background: var(--gold); animation: blink .6s steps(2) infinite; }
+@keyframes blink { 50% { opacity: .4; } }
+.hearts { display: flex; gap: 2px; }
+.stage { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 16px; padding: 12px 0; }
+.ask { display: flex; align-items: flex-end; gap: 10px; }
+.ask .mascot.hop { animation: hop .4s steps(4); }
+.ask .mascot.sad { animation: shake .4s steps(4); }
+@keyframes hop { 50% { transform: translateY(-14px); } }
+.bubble { position: relative; background: var(--paper); color: var(--ink); padding: 10px 12px; font-size: 16px; clip-path: var(--notch); flex: 1; }
+.combo { color: var(--red); font-weight: 700; display: block; font-size: 13px; min-height: 1em; }
+.play-row { display: flex; justify-content: center; gap: 12px; align-items: center; }
+.play { width: 112px; height: 112px; }
+.play.pulse img { animation: pulse .5s steps(3) infinite; }
+@keyframes pulse { 50% { transform: scale(1.15); } }
+.slots { text-align: center; font-size: 28px; letter-spacing: 8px; color: var(--gold); min-height: 40px; }
+.slots .zh { font-size: 40px; letter-spacing: 4px; }
+.options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.opt { min-height: 84px; padding: 10px 6px; font: 34px/1 var(--py); background: var(--paper); color: var(--ink); clip-path: var(--notch);
+  box-shadow: inset 0 -6px 0 #d8c49a; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+.opt.long { font-size: 27px; }
+.opt .hint { font-family: Pixel, sans-serif; }
+.opt:active { transform: translateY(3px); box-shadow: inset 0 -2px 0 #d8c49a; }
+.opt .hint { display: flex; gap: 6px; align-items: center; font-size: 13px; color: #6b4f3a; }
+.opt svg { width: 26px; height: 26px; }
+.opt.right { background: var(--jade); color: #fff; box-shadow: inset 0 -6px 0 var(--jade-d); animation: hop .35s steps(3); }
+.opt.wrong { background: var(--red); color: #fff; box-shadow: inset 0 -6px 0 var(--red-d); animation: shake .35s steps(4); }
+.opt.dim { opacity: .55; }
+@keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+.shake { animation: shake .3s steps(4); }
+.tip { text-align: center; font-size: 12px; opacity: .75; min-height: 1em; }
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; max-width: 480px; margin: 0 auto;
+  padding: 16px 16px calc(env(safe-area-inset-bottom) + 16px); transform: translateY(110%); transition: transform .2s steps(4); }
+.sheet.show { transform: none; }
+#game.answered .stage { padding-bottom: 230px; }
+.sheet.good { background: #134d31; box-shadow: inset 0 var(--px) 0 var(--jade); }
+.sheet.bad { background: #5a1414; box-shadow: inset 0 var(--px) 0 var(--red); }
+.sheet h3 { margin: 0 0 6px; font-size: 22px; }
+.sheet.good h3 { color: var(--jade); } .sheet.bad h3 { color: #ff8080; }
+.sheet .word { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.sheet .word .zh { font-size: 36px; }
+.sheet .word .py { font: 30px/1 var(--py); color: var(--gold); }
+.sheet .word .gl { font-size: 14px; opacity: .85; width: 100%; }
+.sheet .btn { width: 100%; }
+.floater { position: fixed; z-index: 60; font-size: 22px; font-weight: 700; color: var(--gold); text-shadow: 2px 2px 0 #000; pointer-events: none;
+  animation: float 0.9s steps(6) forwards; }
+@keyframes float { to { transform: translateY(-60px); opacity: 0; } }
+
+/* ---------- end ---------- */
+.end { justify-content: center; text-align: center; gap: 14px; }
+.end h2 { font-size: 34px; margin: 0; color: var(--gold); text-shadow: 3px 3px 0 var(--red-d), 5px 5px 0 #000; }
+.end h2 .zh { display: block; font-size: 52px; color: var(--red); text-shadow: 3px 3px 0 var(--gold), 5px 5px 0 #000; }
+.stars { display: flex; justify-content: center; gap: 8px; }
+.stars img { opacity: 0; }
+.stars img.in { animation: stamp .4s steps(4) forwards; }
+@keyframes stamp { 0% { opacity: 0; transform: scale(2.5) rotate(-20deg); } 100% { opacity: 1; transform: none; } }
+.end .big { font-size: 44px; color: var(--gold); }
+.end .row { display: flex; justify-content: center; gap: 18px; font-size: 14px; }
+.end .row b { display: block; font-size: 20px; color: var(--paper); }
+.badge { display: inline-block; background: var(--gold); color: var(--ink); padding: 4px 10px; clip-path: var(--notch); font-weight: 700; animation: blink .5s steps(2) 6; }
+.end .streakup { font-size: 18px; }
+.end .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* ---------- learn ---------- */
+.learn h2 { color: var(--gold); margin: 8px 0; font-size: 26px; text-align: center; }
+.learn p { font-size: 14px; opacity: .9; margin: 0 0 10px; text-align: center; }
+.tones { display: grid; gap: 10px; }
+.tone { display: flex; gap: 12px; align-items: center; padding: 12px; text-align: left; width: 100%; background: var(--paper); color: var(--ink);
+  clip-path: var(--notch); box-shadow: inset 0 -6px 0 #d8c49a; }
+.tone:active { transform: translateY(3px); }
+.tone svg { width: 64px; height: 64px; flex: none; background: var(--ink); }
+.tone b { font-size: 20px; display: block; }
+.tone b .py { font: 28px/1 var(--py); }
+.tone small { font-size: 13px; color: #6b4f3a; display: block; }
+.tone .zh { font-size: 30px; margin-left: auto; color: var(--red); }
+.learn .foot { display: flex; gap: 10px; margin-top: auto; padding-top: 14px; }
+.learn .foot .btn { flex: 1; }
+
+@media (min-height: 760px) { .play { width: 128px; height: 128px; } .opt { min-height: 96px; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01s !important; animation-iteration-count: 1 !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<canvas id="bg" class="layer"></canvas>
+
+<section id="menu" class="screen">
+  <div class="title">
+    <img class="spr mascot" data-spr="panda" data-scale="5" alt="">
+    <h1><span class="zh">声调</span>TONE QUEST</h1>
+  </div>
+  <div class="panel stats">
+    <div class="stat"><img class="spr flame" data-spr="flame" data-scale="3" alt=""><b id="streak">0</b><small>Day streak</small></div>
+    <div class="stat"><img class="spr" data-spr="trophy" data-scale="3" alt=""><b id="beststreak">0</b><small>Best streak</small></div>
+    <div class="stat"><img class="spr" data-spr="coin" data-scale="3" alt=""><b id="xp">0</b><small>Total XP</small></div>
+    <div id="streaknote" class="streak-note"></div>
+  </div>
+  <div id="modes"></div>
+  <div class="menu-foot">
+    <button class="btn dark" id="learnbtn"><span class="zh" style="font-size:18px;opacity:1">学</span>Learn</button>
+    <button class="btn dark" id="voicebtn">Voice<span id="voicelbl"></span></button>
+    <button class="btn dark" id="soundbtn">Sound<span id="soundlbl"></span></button>
+  </div>
+</section>
+
+<section id="game" class="screen hidden">
+  <div class="topbar">
+    <button class="btn dark small" id="quit" aria-label="Quit">✕</button>
+    <div class="progress" id="progress"></div>
+    <div class="hearts" id="hearts"></div>
+  </div>
+  <div class="stage">
+    <div class="ask">
+      <img class="spr mascot" id="gmascot" data-spr="panda" data-scale="4" alt="">
+      <div class="bubble"><span class="combo" id="combo"></span><span id="asktext">Which tone do you hear?</span></div>
+    </div>
+    <div class="play-row">
+      <button class="btn play" id="play" aria-label="Play sound"><img class="spr" data-spr="speaker" data-scale="6" alt=""></button>
+      <button class="btn gold small" id="slow" aria-label="Play slowly"><span class="zh">慢</span> Slow</button>
+    </div>
+    <div class="slots" id="slots"></div>
+    <div class="options" id="options"></div>
+    <div class="tip" id="tip"></div>
+  </div>
+</section>
+
+<div class="sheet" id="sheet">
+  <h3 id="verdict"></h3>
+  <div class="word"><span class="zh" id="fzh"></span><span class="py" id="fpy"></span><span class="gl" id="fgl"></span></div>
+  <button class="btn" id="next">Continue</button>
+</div>
+
+<section id="end" class="screen end hidden">
+  <h2 id="endtitle"></h2>
+  <div class="stars" id="stars"></div>
+  <div><div class="big" id="endscore">0</div><div id="newbest"></div></div>
+  <div class="row"><div><b id="endacc"></b>Accuracy</div><div><b id="endcombo"></b>Best combo</div></div>
+  <div class="streakup" id="streakup"></div>
+  <div class="btns"><button class="btn dark" id="tomenu">Menu</button><button class="btn gold" id="again">Again</button></div>
+</section>
+
+<section id="learn" class="screen learn hidden">
+  <h2><span class="zh">四声</span> The 4 Tones</h2>
+  <p>Tap a card to hear it. Same syllable, different tone, different word.</p>
+  <div class="tones" id="tones"></div>
+  <div class="foot"><button class="btn dark" id="learnback">Back</button><button class="btn gold" id="learnplay">Start easy</button></div>
+</section>
+
+<canvas id="fx" class="layer"></canvas>
+<script src="game.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
