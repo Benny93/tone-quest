@@ -75,7 +75,7 @@ button { font: inherit; color: inherit; border: 0; cursor: pointer; background: 
 .mode .info small { font-size: 12px; color: #6b4f3a; }
 .mode .best { text-align: right; font-size: 12px; color: #6b4f3a; white-space: nowrap; }
 .mode .best b { display: block; font-size: 16px; color: var(--red-d); }
-.menu-foot { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 8px; }
+.menu-foot { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; margin-top: 8px; }
 .menu-foot .btn { font-size: 13px; padding: 12px 6px; flex-direction: column; gap: 2px; }
 .menu-foot .btn span { font-size: 10px; opacity: .85; font-weight: 400; }
 
@@ -161,6 +161,7 @@ button { font: inherit; color: inherit; border: 0; cursor: pointer; background: 
 .tone .zh { font-size: 30px; margin-left: auto; color: var(--red); }
 .learn .foot { display: flex; gap: 10px; margin-top: auto; padding-top: 14px; }
 .learn .foot .btn { flex: 1; }
+a { color: var(--gold); text-decoration: underline; }
 
 @media (min-height: 760px) { .play { width: 128px; height: 128px; } .opt { min-height: 96px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01s !important; animation-iteration-count: 1 !important; transition: none !important; } }
@@ -185,6 +186,7 @@ button { font: inherit; color: inherit; border: 0; cursor: pointer; background: 
     <button class="btn dark" id="learnbtn"><span class="zh" style="font-size:18px;opacity:1">学</span>Learn</button>
     <button class="btn dark" id="voicebtn">Voice<span id="voicelbl"></span></button>
     <button class="btn dark" id="soundbtn">Sound<span id="soundlbl"></span></button>
+    <button class="btn dark" id="creditsbtn"><span class="zh" style="font-size:18px;opacity:1">谢</span>Credits</button>
   </div>
 </section>
 
@@ -231,8 +233,20 @@ button { font: inherit; color: inherit; border: 0; cursor: pointer; background: 
   <div class="foot"><button class="btn dark" id="learnback">Back</button><button class="btn gold" id="learnplay">Start easy</button></div>
 </section>
 
+<section id="credits" class="screen learn hidden">
+  <div class="panel" style="flex:1; display:flex; flex-direction:column; gap:6px; overflow-y:auto; margin:14px">
+    <h2><span class="zh">鸣谢</span> Credits</h2>
+    <p style="margin-bottom:2px"><b>Human recordings</b></p>
+    <p style="font-size:13px;margin-top:0">All syllable and HSK word audio: <a href="https://github.com/hugolpz/audio-cmn" target="_blank" rel="noopener">hugolpz/audio-cmn</a> (CC-by-sa 4.0)<br>Recorded by native Mandarin speakers via Forvo.</p>
+    <p style="margin-bottom:2px"><b>Synthesized fill-in</b></p>
+    <p style="font-size:13px;margin-top:0">Compound words not in audio-cmn: <a href="https://github.com/rhasspy/piper" target="_blank" rel="noopener">Piper</a> zh_CN-xiao_ya-medium (CC-by-sa 4.0, OHF-Voice)</p>
+  </div>
+  <div class="foot"><button class="btn dark" id="creditsback">Back</button></div>
+</section>
+
 <canvas id="fx" class="layer"></canvas>
 <script src="game.js"></script>
+<script src="audio/manifest.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

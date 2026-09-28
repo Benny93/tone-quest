@@ -5,9 +5,10 @@
   const KEY = 'tonequest.v1';
 
   // ---------- persistence ----------
-  let S = { streak: {}, best: {}, xp: 0, voice: 'auto', sound: true };
+  let S = { streak: {}, best: {}, xp: 0, voice: 'studio', sound: true };
   try { S = { ...S, ...JSON.parse(localStorage.getItem(KEY)) }; } catch (e) {}
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+  if (S.voice === 'device' && !S._vs) { S.voice = 'studio'; save(); } // one-time: prefer clips unless user explicitly chose
 
   // ---------- pixel sprites ----------
   const PAL = { k: '#1a1020', w: '#fff4dc', r: '#d62e2e', R: '#8e1b1b', y: '#ffcc33', o: '#ff8a1e', p: '#ff9ecb', s: '#4a3a5c', b: '#5aa9ff' };
@@ -106,21 +107,51 @@
     return (t - c.currentTime) * 1000;
   }
 
+  // ---------- pregenerated audio (works on file:// via <script> tag, http via fetch fallback) ----------
+  let manifest = window.AUDIO_MANIFEST ? { files: window.AUDIO_MANIFEST } : null, audioCache = {}, playing = null;
+  if (!manifest) fetch('audio/manifest.json').then(r => (r.ok ? r.json() : null)).then(m => { manifest = m; renderVoice(); }).catch(() => {});
+  const clipFile = key => manifest && manifest.files && manifest.files.find(f => f === key + '.mp3' || f === key + '.m4a');
+  const hasClip = key => !!clipFile(key);
+  function clip(key) {
+    const name = clipFile(key);
+    if (!audioCache[name]) { const a = new Audio('audio/' + name); a.preload = 'auto'; audioCache[name] = a; }
+    return audioCache[name];
+  }
+  const stopAudio = () => { if (playing) { playing.pause(); playing = null; } };
+
   let zhVoice = null;
   function pickVoice() {
     const zh = speechSynthesis.getVoices().filter(v => /^(zh|cmn)/i.test(v.lang) && !/HK|yue|canton/i.test(v.lang + v.name));
     zhVoice = zh.find(v => /CN|Hans/i.test(v.lang) && v.localService) || zh.find(v => /CN|Hans/i.test(v.lang)) || zh[0] || null;
+    if (S.voice === 'auto') { S.voice = 'studio'; save(); } // migrate legacy setting to studio
     renderVoice();
   }
   if ('speechSynthesis' in window) { pickVoice(); speechSynthesis.addEventListener?.('voiceschanged', pickVoice); }
 
-  const useTts = () => S.voice === 'auto' && zhVoice;
-  function speak(text, tones, slow) {
+  // studio = pregenerated clips (human recordings + Piper) with device TTS as fallback; device = speechSynthesis; hum = pixel synth.
+  const useTts = () => S.voice === 'device' && zhVoice;
+  // key = tone-number pinyin of the answer (audio/<key>.mp3 or .m4a); text = hanzi for the TTS path.
+  function speak(text, tones, slow, key) {
     const btn = $('#play');
     const busy = ms => { btn.classList.add('pulse'); clearTimeout(speak.t); speak.t = setTimeout(() => btn.classList.remove('pulse'), ms); };
-    let fell = false;
-    const fallback = () => { if (!fell) { fell = true; busy(hum(tones, slow)); } };
-    if (!useTts()) return fallback();
+    const fallback = () => busy(hum(tones, slow));
+    stopAudio();
+    if (S.voice !== 'device') speechSynthesis?.cancel();
+    key = key || text.replace(/\s+/g, ''); // learn-screen demos pass a bare syllable
+    const useClip = S.voice === 'studio' && hasClip(key);
+    if (useClip) {
+      const a = clip(key);
+      a.currentTime = 0;
+      a.playbackRate = slow ? 0.7 : 1; // human recordings stretch well; no separate slow files needed
+      playing = a;
+      a.onended = () => { if (playing === a) btn.classList.remove('pulse'); };
+      a.onerror = () => { playing = null; fallback(); };
+      a.play().then(() => busy(Math.max(a.duration / a.playbackRate, 0.5) * 1000)).catch(() => { playing = null; fallback(); });
+      return;
+    }
+    if (S.voice === 'studio' && !hasClip(key)) { /* clip missing: try device TTS, fall to hum */
+      if (!zhVoice) return fallback();
+    } else if (S.voice !== 'device') return fallback(); // synth mode: straight to the hum
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.voice = zhVoice; u.lang = zhVoice.lang; u.rate = slow ? 0.5 : 0.8;
@@ -131,7 +162,7 @@
     busy(slow ? 2500 : 1500);
     speechSynthesis.speak(u);
     // Some Android voices need the network; if nothing starts, hum instead.
-    setTimeout(() => { if (!started && !fell) { speechSynthesis.cancel(); fallback(); } }, 1500);
+    setTimeout(() => { if (!started && !speechSynthesis.speaking) { speechSynthesis.cancel(); fallback(); } }, 1500);
   }
 
   // ---------- pixel background + fx ----------
@@ -229,11 +260,11 @@
   requestAnimationFrame(frame);
 
   // ---------- screens ----------
-  const show = id => { for (const s of ['menu', 'game', 'end', 'learn']) $('#' + s).classList.toggle('hidden', s !== id); };
+  const show = id => { for (const s of ['menu', 'game', 'end', 'learn', 'credits']) $('#' + s).classList.toggle('hidden', s !== id); };
 
   function renderVoice() {
     const lbl = $('#voicelbl'); if (!lbl) return;
-    lbl.textContent = S.voice === 'synth' ? 'Pixel hum' : zhVoice ? 'Real voice' : 'Hum (no zh)';
+    lbl.textContent = S.voice === 'synth' ? 'Pixel hum' : S.voice === 'device' ? (zhVoice ? 'Device voice' : 'Hum (no zh)') : manifest ? 'Studio' : 'Studio (missing)';
   }
   function renderSound() { $('#soundlbl').textContent = S.sound ? 'On' : 'Off'; }
 
@@ -264,11 +295,13 @@
 
   $('#modes').addEventListener('click', e => { const b = e.target.closest('.mode'); if (b) start(b.dataset.mode); });
   $('#voicebtn').onclick = () => {
-    S.voice = S.voice === 'auto' ? 'synth' : 'auto'; save(); renderVoice();
+    S.voice = { studio: 'device', device: 'synth', synth: 'studio' }[S.voice] || 'studio'; S._vs = true; save(); renderVoice();
     speak('妈', [1]);
   };
   $('#soundbtn').onclick = () => { S.sound = !S.sound; save(); renderSound(); sfx('tap'); };
   $('#learnbtn').onclick = () => { sfx('tap'); renderLearn(); show('learn'); };
+  $('#creditsbtn').onclick = () => { sfx('tap'); show('credits'); };
+  $('#creditsback').onclick = () => { show('menu'); renderMenu(); };
 
   // ---------- game ----------
   let R = null;
@@ -299,12 +332,12 @@
     setTimeout(() => R && q() === cur && !R.locked && say(), delay);
   }
 
-  const say = slow => speak(q().chars, q().tones, slow);
+  const say = slow => speak(q().chars, q().tones, slow, G.keyOf(q().syls, q().tones));
 
   function pick(i) {
     const cur = q(), btns = [...$('#options').children];
     if (R.locked) { // after answering: tap to compare single-syllable tones
-      if (cur.alts) speak(cur.alts[i], cur.options[i], false);
+      if (cur.alts) speak(cur.alts[i], cur.options[i], false, G.keyOf(cur.syls, cur.options[i]));
       return;
     }
     R.locked = true;
@@ -363,7 +396,7 @@
   $('#play').onclick = () => say();
   $('#slow').onclick = () => say(true);
   $('#next').onclick = next;
-  $('#quit').onclick = () => { R = null; $('#sheet').classList.remove('show'); $('#game').classList.remove('answered'); window.speechSynthesis?.cancel(); show('menu'); renderMenu(); };
+  $('#quit').onclick = () => { R = null; $('#sheet').classList.remove('show'); $('#game').classList.remove('answered'); stopAudio(); window.speechSynthesis?.cancel(); show('menu'); renderMenu(); };
 
   function end() {
     const today = G.dayKey(), mode = R.mode.id, stars = G.stars(R.correct);
@@ -406,7 +439,7 @@
     $('#tones').innerHTML = TONE_INFO.map(([zh, name, desc], i) => `<button class="tone" data-t="${i + 1}">${contourSvg(i + 1, true)}
       <span><b><span class="py">${G.mark('ma', i + 1)}</span> · ${name}</b><small>${zh} — ${desc}</small><small>${MA.gloss[i]}</small></span><span class="zh">${MA.chars[i]}</span></button>`).join('');
   }
-  $('#tones').addEventListener('click', e => { const b = e.target.closest('.tone'); if (b) { const t = +b.dataset.t; speak(MA.chars[t - 1], [t]); } });
+  $('#tones').addEventListener('click', e => { const b = e.target.closest('.tone'); if (b) { const t = +b.dataset.t; speak(MA.chars[t - 1], [t], false, 'ma' + t); } });
   $('#learnback').onclick = () => { show('menu'); renderMenu(); };
   $('#learnplay').onclick = () => start('easy');
 

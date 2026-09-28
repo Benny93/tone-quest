@@ -18,6 +18,14 @@ for (const w of [...G.DOUBLE_WORDS, ...G.TRIPLE_WORDS]) {
 }
 assert.ok(G.DOUBLE_WORDS.every(w => w.syls.length === 2) && G.TRIPLE_WORDS.every(w => w.syls.length === 3));
 
+// Audio keys for tools/generate-audio.sh: unique per entry, so audio/<key>.m4a is unambiguous.
+assert.equal(G.keyOf(['zhong', 'guo'], [1, 2]), 'zhong1guo2');
+assert.equal(G.keyOf(['ma'], [4]), 'ma4');
+const audioKeys = new Set();
+for (const s of G.singles) for (let t = 1; t <= 4; t++) audioKeys.add(G.keyOf([s.syl], [t]));
+for (const w of [...G.DOUBLE_WORDS, ...G.TRIPLE_WORDS]) audioKeys.add(G.keyOf(w.syls, w.tones));
+assert.equal(audioKeys.size, G.singles.length * 4 + G.DOUBLE_WORDS.length + G.TRIPLE_WORDS.length, 'audio keys unique');
+
 for (const id of G.MODES.map(m => m.id)) for (let r = 0; r < 50; r++) {
   const round = G.makeRound(id);
   assert.equal(round.length, G.ROUND);

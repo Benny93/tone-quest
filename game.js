@@ -123,6 +123,9 @@ han4bao3bao1 汉堡包 hamburger`;
 
   const pinyin = (syls, tones) => syls.map((s, i) => mark(s, tones[i])).join(' ');
 
+  // Pregenerated-audio key: syllable+tone-number pairs, e.g. ['zhong','guo'],[1,2] -> 'zhong1guo2'.
+  const keyOf = (syls, tones) => syls.map((s, i) => s + tones[i]).join('');
+
   const EASY = ['ma', 'ba', 'da', 'yi', 'wu', 'tang'];
   const MODES = [
     { id: 'easy', tier: 1, zh: '一', name: 'First Tones', desc: '6 simple syllables · tone hints', n: 1, hints: true },
@@ -186,6 +189,6 @@ han4bao3bao1 汉堡包 hamburger`;
 
   const DOUBLE_WORDS = words(DOUBLES), TRIPLE_WORDS = words(TRIPLES);
 
-  root.Game = { singles, DOUBLE_WORDS, TRIPLE_WORDS, MODES, TIERS, ROUND, HEARTS, mark, pinyin, shuffle, distractors,
+  root.Game = { singles, DOUBLE_WORDS, TRIPLE_WORDS, MODES, TIERS, ROUND, HEARTS, mark, pinyin, keyOf, shuffle, distractors,
     makeRound, same, points, stars, dayKey, prevDay, bumpStreak, liveStreak };
 })(typeof module !== 'undefined' ? module.exports : window);
